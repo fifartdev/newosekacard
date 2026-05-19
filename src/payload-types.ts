@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    profiles: Profile;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,13 +79,14 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    profiles: ProfilesSelect<false> | ProfilesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   fallbackLocale: null;
   globals: {};
@@ -122,7 +124,7 @@ export interface UserAuthOperations {
  * via the `definition` "users".
  */
 export interface User {
-  id: string;
+  id: number;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -147,7 +149,7 @@ export interface User {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
+  id: number;
   alt: string;
   updatedAt: string;
   createdAt: string;
@@ -162,11 +164,76 @@ export interface Media {
   focalY?: number | null;
 }
 /**
+ * Client profiles — each profile auto-generates a wallet pass on creation.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "profiles".
+ */
+export interface Profile {
+  id: number;
+  /**
+   * Auto-generated UUID for QR tracking.
+   */
+  uniqueQrToken?: string | null;
+  /**
+   * Apple Wallet .pkpass download path (set automatically).
+   */
+  walletPassUrl?: string | null;
+  /**
+   * Google Wallet save URL (set automatically).
+   */
+  googleWalletUrl?: string | null;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  avatar?: (number | null) | Media;
+  /**
+   * Determines which profile data fields are shown and validated.
+   */
+  role: 'admin' | 'client_type_a' | 'client_type_b';
+  /**
+   * Fields visible only for Individual clients.
+   */
+  individualProfile?: {
+    jobTitle?: string | null;
+    /**
+     * Displayed on the public profile page.
+     */
+    bio?: string | null;
+    linkedinUrl?: string | null;
+    portfolioUrl?: string | null;
+    skills?:
+      | {
+          skill: string;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  /**
+   * Fields visible only for Business clients.
+   */
+  businessProfile?: {
+    companyName: string;
+    industry?: string | null;
+    websiteUrl?: string | null;
+    taxId?: string | null;
+    employeeCount?: ('1-10' | '11-50' | '51-200' | '200+') | null;
+    address?: {
+      street?: string | null;
+      city?: string | null;
+      postalCode?: string | null;
+      country?: string | null;
+    };
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: string;
+  id: number;
   key: string;
   data:
     | {
@@ -183,20 +250,24 @@ export interface PayloadKv {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'users';
-        value: string | User;
+        value: number | User;
       } | null)
     | ({
         relationTo: 'media';
-        value: string | Media;
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'profiles';
+        value: number | Profile;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -206,10 +277,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   key?: string | null;
   value?:
@@ -229,7 +300,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -274,6 +345,53 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "profiles_select".
+ */
+export interface ProfilesSelect<T extends boolean = true> {
+  uniqueQrToken?: T;
+  walletPassUrl?: T;
+  googleWalletUrl?: T;
+  fullName?: T;
+  email?: T;
+  phone?: T;
+  avatar?: T;
+  role?: T;
+  individualProfile?:
+    | T
+    | {
+        jobTitle?: T;
+        bio?: T;
+        linkedinUrl?: T;
+        portfolioUrl?: T;
+        skills?:
+          | T
+          | {
+              skill?: T;
+              id?: T;
+            };
+      };
+  businessProfile?:
+    | T
+    | {
+        companyName?: T;
+        industry?: T;
+        websiteUrl?: T;
+        taxId?: T;
+        employeeCount?: T;
+        address?:
+          | T
+          | {
+              street?: T;
+              city?: T;
+              postalCode?: T;
+              country?: T;
+            };
+      };
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
