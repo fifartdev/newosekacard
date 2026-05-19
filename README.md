@@ -1,67 +1,253 @@
-# Payload Blank Template
+# Oseka Card
 
-This template comes configured with the bare minimum to get started on anything you need.
+A digital business card platform built with **Next.js**, **Payload CMS**, and **Neon (PostgreSQL)**.
+Each client gets a public profile page and an auto-generated digital wallet pass —
+Apple Wallet (`.pkpass`) and Google Wallet — containing a QR code that links back to their profile.
 
-## Quick start
+---
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+## Tech Stack
 
-## Quick Start - local setup
+- **Next.js 16** (App Router)
+- **Payload CMS 3.x** (embedded, monorepo)
+- **Neon** — serverless PostgreSQL
+- **passkit-generator** — Apple Wallet `.pkpass` generation
+- **Google Wallet API** — JWT-based pass deep links
+- **TypeScript** · **pnpm**
 
-To spin up this template locally, follow these steps:
+---
 
-### Clone
+## Prerequisites
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+- Node.js ≥ 20.9.0
+- pnpm ≥ 9
+- A [Neon](https://neon.tech) account (free tier is fine for dev)
 
-### Development
+---
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+## 1. Clone & Install
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+```bash
+git clone <your-repo-url>
+cd newosekacard
+pnpm install
+```
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+---
 
-#### Docker (Optional)
+## 2. Configure Environment Variables
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+Copy the example file and fill in the required values:
 
-To do so, follow these steps:
+```bash
+cp .env.example .env
+```
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+Open `.env` and set:
 
-## How it works
+```bash
+# ── Required ──────────────────────────────────────────────────────────────────
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-### Collections
+# Get from Neon dashboard → your project → "Connection string" → Node.js
+# For local dev use the direct URL; for Vercel use the pooled URL (-pooler hostname)
+DATABASE_URL=postgresql://<user>:<password>@<endpoint>.neon.tech/<dbname>?sslmode=require
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+# Any long random string (openssl rand -hex 32)
+PAYLOAD_SECRET=your-long-random-secret
 
-- #### Users (Authentication)
+# ── Apple Wallet (optional — passes are skipped gracefully until certs are added) ──
 
-  Users are auth-enabled collections that have access to the admin panel.
+APPLE_PASS_TYPE_IDENTIFIER=pass.com.yourcompany.osekacard
+APPLE_TEAM_IDENTIFIER=YOUR10CHARTEAMID
+APPLE_KEY_PASSPHRASE=    # leave blank if you stripped the passphrase
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/3.x/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+# ── Google Wallet (optional — URLs are skipped gracefully until configured) ────
 
-- #### Media
+GOOGLE_WALLET_ISSUER_ID=
+GOOGLE_SERVICE_ACCOUNT_EMAIL=
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=   # full RSA key with \n escaped
+```
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+### Getting your Neon connection string
 
-### Docker
+1. Sign up at [neon.tech](https://neon.tech) and create a project.
+2. In your project dashboard click **Connection string**, select the **Node.js** tab.
+3. Copy the full URL — it looks like:
+   ```
+   postgresql://alex:AbC123@ep-cool-darkness-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+4. Paste it as `DATABASE_URL` in your `.env`.
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+> **Vercel deployments:** use the **pooled** connection string (the hostname contains `-pooler`).
+> Keep the direct URL for local development.
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+---
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+## 3. Run the Dev Server
 
-## Questions
+```bash
+pnpm dev
+```
 
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+Visit [http://localhost:3000/admin](http://localhost:3000/admin) to open the Payload admin panel.
+Follow the on-screen prompt to create your first admin user.
+
+---
+
+## 4. Create Your First Profile
+
+1. In the admin panel go to **Profiles → Create New**.
+2. Fill in Full Name, Email, and select a Role.
+3. Save — the `afterChange` hook fires immediately and:
+   - Generates a QR code pointing to `/profile/<id>`
+   - (If Apple certs exist) generates a `.pkpass` at `/public/passes/<id>.pkpass`
+   - (If Google creds exist) generates a Google Wallet save URL
+4. Visit `/profile/<id>` to see the public profile page.
+5. Visit `/dashboard` (logged in) to see the card preview and wallet download buttons.
+
+---
+
+## 5. Enable Apple Wallet Passes
+
+Apple Wallet requires a paid Apple Developer account.
+
+### Step 1 — Create a Pass Type ID
+
+1. Log in to [developer.apple.com](https://developer.apple.com).
+2. Go to **Certificates, Identifiers & Profiles → Identifiers → Pass Type IDs**.
+3. Register a new ID, e.g. `pass.com.yourcompany.osekacard`.
+4. Set `APPLE_PASS_TYPE_IDENTIFIER` in your `.env`.
+
+### Step 2 — Generate & export the certificate
+
+1. In the portal, select your Pass Type ID → **Edit → Create Certificate**.
+2. Follow the CSR wizard, download `pass.cer`.
+3. Double-click to add it to Keychain, then **export as `.p12`** (set a passphrase or leave blank).
+
+### Step 3 — Extract PEM files
+
+```bash
+# Place your .p12 file in wallet-assets/certificates/ then run:
+cd wallet-assets/certificates
+
+openssl pkcs12 -in YourPassCert.p12 -clcerts -nokeys -out signerCert.pem
+openssl pkcs12 -in YourPassCert.p12 -nocerts -out signerKey.pem
+
+# Optional: strip the passphrase so APPLE_KEY_PASSPHRASE can remain blank
+openssl rsa -in signerKey.pem -out signerKey.pem
+```
+
+### Step 4 — Download the WWDR G4 intermediate cert
+
+```bash
+curl -O https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer
+# Convert DER → PEM:
+openssl x509 -inform der -in AppleWWDRCAG4.cer -out wwdr.pem
+```
+
+### Step 5 — Set env vars
+
+```bash
+APPLE_PASS_TYPE_IDENTIFIER=pass.com.yourcompany.osekacard
+APPLE_TEAM_IDENTIFIER=AB12CD34EF   # 10-character Team ID from developer.apple.com
+APPLE_KEY_PASSPHRASE=              # blank if you stripped it in Step 3
+```
+
+> Certificate files are gitignored. Never commit `.pem` or `.p12` files.
+
+---
+
+## 6. Enable Google Wallet Passes
+
+### Step 1 — Google Cloud setup
+
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com).
+2. Enable the **Google Wallet API**.
+3. Go to **IAM & Admin → Service Accounts → Create Service Account**.
+4. Download the JSON key file.
+
+### Step 2 — Register as a Google Wallet issuer
+
+1. Visit [pay.google.com/business/console](https://pay.google.com/business/console).
+2. Register your business and note the **Issuer ID**.
+
+### Step 3 — Set env vars
+
+Extract from the service account JSON:
+
+```bash
+GOOGLE_WALLET_ISSUER_ID=3388000000XXXXXXXXX
+GOOGLE_SERVICE_ACCOUNT_EMAIL=wallet@your-project.iam.gserviceaccount.com
+# Copy the "private_key" value from the JSON (keep \n escaped):
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE..."
+```
+
+---
+
+## 7. Useful Commands
+
+```bash
+pnpm dev                      # start dev server (http://localhost:3000)
+pnpm build                    # production build
+pnpm start                    # serve production build
+
+# Payload CMS
+pnpm payload generate:types   # regenerate src/payload-types.ts after schema changes
+pnpm payload migrate:create   # create a new DB migration file
+pnpm payload migrate          # run pending migrations against Neon
+```
+
+> **Always run `pnpm payload generate:types`** after modifying any collection schema.
+
+---
+
+## 8. Project Structure
+
+```
+src/
+├── app/
+│   ├── (frontend)/
+│   │   ├── profile/[id]/page.tsx   ← public profile (no auth)
+│   │   └── dashboard/page.tsx      ← protected client dashboard
+│   └── api/wallet/
+│       ├── apple/[id]/route.ts     ← .pkpass download
+│       └── google/[id]/route.ts    ← Google Wallet redirect
+├── collections/
+│   ├── Profiles.ts                 ← role-based profile collection
+│   ├── Users.ts                    ← Payload admin auth
+│   └── Media.ts                    ← file uploads
+├── hooks/
+│   └── afterCreateProfile.ts       ← wallet pass generation trigger
+├── lib/
+│   ├── qr.ts
+│   └── wallet/
+│       ├── apple.ts
+│       └── google.ts
+├── components/
+│   └── WalletButtons.tsx
+└── payload.config.ts
+
+wallet-assets/
+├── certificates/                   ← Apple PEM files (gitignored)
+└── pass-template/                  ← Pass icon/logo images
+```
+
+---
+
+## 9. Production Checklist
+
+- [ ] Set `NEXT_PUBLIC_APP_URL` to your production domain
+- [ ] Use the **pooled** Neon connection string for `DATABASE_URL`
+- [ ] Move `.pkpass` storage from `/public/passes/` to **S3 / Cloudflare R2**
+- [ ] Add rate limiting to `/api/wallet/*` routes
+- [ ] Restrict write access on `walletPassUrl` and `googleWalletUrl` fields to server-only
+
+---
+
+## Questions & Support
+
+- Payload CMS docs: [payloadcms.com/docs](https://payloadcms.com/docs)
+- Neon docs: [neon.tech/docs](https://neon.tech/docs)
+- passkit-generator: [github.com/alexandercerutti/passkit-generator](https://github.com/alexandercerutti/passkit-generator)
