@@ -83,6 +83,18 @@ export const Profiles: CollectionConfig = {
       label: 'Profile Photo',
     },
 
+    // ── Pass expiration ───────────────────────────────────────────────────
+    {
+      name: 'passExpiresAt',
+      type: 'date',
+      label: 'Pass Expiration Date',
+      admin: {
+        position: 'sidebar',
+        description: 'Optional. Leave blank for no expiration.',
+        date: { pickerAppearance: 'dayOnly' },
+      },
+    },
+
     // ── Role selector ─────────────────────────────────────────────────────
     {
       name: 'role',

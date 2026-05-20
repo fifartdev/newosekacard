@@ -50,6 +50,7 @@ export const afterCreateProfile: CollectionAfterChangeHook = async ({ doc, opera
       fullName: doc.fullName as string,
       role: doc.role as string,
       profileUrl,
+      expiresAt: doc.passExpiresAt as string | null ?? null,
     })
     if (googleUrl) updates.googleWalletUrl = googleUrl
   } catch (err) {

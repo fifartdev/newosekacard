@@ -5,6 +5,7 @@ export interface GooglePassOptions {
   fullName: string
   role: string
   profileUrl: string
+  expiresAt?: string | null
 }
 
 /**
@@ -58,6 +59,12 @@ export function generateGoogleWalletUrl(opts: GooglePassOptions): string | null 
     },
     hexBackgroundColor: '#161616',
     state: 'ACTIVE',
+    ...(opts.expiresAt && {
+      validTimeInterval: {
+        start: { date: new Date().toISOString() },
+        end: { date: new Date(opts.expiresAt).toISOString() },
+      },
+    }),
   }
 
   const jwtPayload = {

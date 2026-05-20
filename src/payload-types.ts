@@ -188,6 +188,10 @@ export interface Profile {
   phone?: string | null;
   avatar?: (number | null) | Media;
   /**
+   * Optional. Leave blank for no expiration.
+   */
+  passExpiresAt?: string | null;
+  /**
    * Determines which profile data fields are shown and validated.
    */
   role: 'admin' | 'client_type_a' | 'client_type_b';
@@ -358,6 +362,7 @@ export interface ProfilesSelect<T extends boolean = true> {
   email?: T;
   phone?: T;
   avatar?: T;
+  passExpiresAt?: T;
   role?: T;
   individualProfile?:
     | T
